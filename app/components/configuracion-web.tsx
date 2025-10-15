@@ -64,6 +64,7 @@ export function ConfiguracionWebComponent({
     home_display_featured_only: configuracionWeb?.home_display_featured_only || false,
     combos: configuracionWeb?.combos || false,
     titulo_seccion_combos: configuracionWeb?.titulo_seccion_combos || "Combos Especiales",
+    combos_subtitulo: configuracionWeb?.combos_subtitulo || "",
     titulo_seccion_promos: configuracionWeb?.titulo_seccion_promos || "Promociones",
     titulo_seccion_destacados: configuracionWeb?.titulo_seccion_destacados || "Productos Destacados"
   })
@@ -112,6 +113,7 @@ export function ConfiguracionWebComponent({
       home_display_featured_only: false,
       combos: false,
       titulo_seccion_combos: "Combos Especiales",
+      combos_subtitulo: "",
       titulo_seccion_promos: "Promociones",
       titulo_seccion_destacados: "Productos Destacados"
     })
@@ -438,18 +440,34 @@ export function ConfiguracionWebComponent({
 
                   {/* Campo para título de sección de combos */}
                   {formData.combos && (
-                    <div className="space-y-2">
-                      <Label htmlFor="titulo_seccion_combos">Título de la sección de combos</Label>
-                      <Input
-                        id="titulo_seccion_combos"
-                        value={formData.titulo_seccion_combos}
-                        onChange={(e) => handleInputChange('titulo_seccion_combos', e.target.value)}
-                        placeholder="Ej: Combos Especiales, Ofertas Combo, etc."
-                        maxLength={50}
-                      />
-                      <p className="text-xs text-gray-500">
-                        Este será el título que aparecerá en la sección de combos del sitio web
-                      </p>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="titulo_seccion_combos">Título de la sección de combos</Label>
+                        <Input
+                          id="titulo_seccion_combos"
+                          value={formData.titulo_seccion_combos}
+                          onChange={(e) => handleInputChange('titulo_seccion_combos', e.target.value)}
+                          placeholder="Ej: Combos Especiales, Ofertas Combo, etc."
+                          maxLength={50}
+                        />
+                        <p className="text-xs text-gray-500">
+                          Este será el título que aparecerá en la sección de combos del sitio web
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="combos_subtitulo">Subtítulo de la sección de combos</Label>
+                        <Input
+                          id="combos_subtitulo"
+                          value={formData.combos_subtitulo}
+                          onChange={(e) => handleInputChange('combos_subtitulo', e.target.value)}
+                          placeholder="Ej: Las mejores ofertas en paquetes combinados"
+                          maxLength={100}
+                        />
+                        <p className="text-xs text-gray-500">
+                          Este será el subtítulo que aparecerá debajo del título en la sección de combos
+                        </p>
+                      </div>
                     </div>
                   )}
 
@@ -510,7 +528,12 @@ export function ConfiguracionWebComponent({
                     <p><strong>Solo destacados:</strong> {formData.home_display_featured_only ? 'Sí' : 'No'}</p>
                     <p><strong>Combos habilitados:</strong> {formData.combos ? 'Sí' : 'No'}</p>
                     {formData.combos && (
-                      <p><strong>Título sección combos:</strong> "{formData.titulo_seccion_combos}"</p>
+                      <>
+                        <p><strong>Título sección combos:</strong> "{formData.titulo_seccion_combos}"</p>
+                        {formData.combos_subtitulo && (
+                          <p><strong>Subtítulo sección combos:</strong> "{formData.combos_subtitulo}"</p>
+                        )}
+                      </>
                     )}
                     <p><strong>Título sección promociones:</strong> "{formData.titulo_seccion_promos}"</p>
                     <p><strong>Título sección destacados:</strong> "{formData.titulo_seccion_destacados}"</p>

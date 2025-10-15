@@ -219,6 +219,7 @@ export interface ConfiguracionWeb {
   home_display_featured_only: boolean
   combos: boolean
   titulo_seccion_combos?: string
+  combos_subtitulo?: string
   titulo_seccion_promos?: string
   titulo_seccion_destacados?: string
 } 
