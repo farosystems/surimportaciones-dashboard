@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
-import { Monitor, Smartphone, Save, Palette, Type, Layout, Upload, Home, Settings } from "lucide-react"
+import { Monitor, Smartphone, Save, Palette, Type, Layout, Upload, Home, Settings, Image as ImageIcon, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -66,7 +66,12 @@ export function ConfiguracionWebComponent({
     titulo_seccion_combos: configuracionWeb?.titulo_seccion_combos || "Combos Especiales",
     combos_subtitulo: configuracionWeb?.combos_subtitulo || "",
     titulo_seccion_promos: configuracionWeb?.titulo_seccion_promos || "Promociones",
-    titulo_seccion_destacados: configuracionWeb?.titulo_seccion_destacados || "Productos Destacados"
+    titulo_seccion_destacados: configuracionWeb?.titulo_seccion_destacados || "Productos Destacados",
+
+    // Banners
+    banner_1: configuracionWeb?.banner_1 || "",
+    banner_2: configuracionWeb?.banner_2 || "",
+    banner_3: configuracionWeb?.banner_3 || ""
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -115,7 +120,46 @@ export function ConfiguracionWebComponent({
       titulo_seccion_combos: "Combos Especiales",
       combos_subtitulo: "",
       titulo_seccion_promos: "Promociones",
-      titulo_seccion_destacados: "Productos Destacados"
+      titulo_seccion_destacados: "Productos Destacados",
+      banner_1: "",
+      banner_2: "",
+      banner_3: ""
+    })
+  }
+
+  const handleImageUpload = async (field: 'banner_1' | 'banner_2' | 'banner_3', file: File) => {
+    try {
+      const fileExt = file.name.split('.').pop()
+      const fileName = `banner-${Date.now()}.${fileExt}`
+      const filePath = `banners/${fileName}`
+
+      const { data, error } = await fetch('/api/upload-image', {
+        method: 'POST',
+        body: JSON.stringify({
+          file: await fileToBase64(file),
+          fileName: filePath
+        }),
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }).then(res => res.json())
+
+      if (error) throw error
+
+      const publicUrl = data.publicUrl
+      handleInputChange(field, publicUrl)
+    } catch (error) {
+      console.error('Error al subir imagen:', error)
+      alert('Error al subir la imagen')
+    }
+  }
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.readAsDataURL(file)
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = error => reject(error)
     })
   }
 
@@ -504,7 +548,215 @@ export function ConfiguracionWebComponent({
 
                 <div className="space-y-3">
                 </div>
-                
+
+                <Separator />
+
+                {/* Banners Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <ImageIcon className="h-4 w-4" />
+                    <h3 className="text-lg font-semibold">Banners del Home</h3>
+                  </div>
+                  <p className="text-sm text-gray-600">
+                    Configura hasta 3 banners para mostrar en el carrusel principal del home
+                  </p>
+
+                  {/* Banner 1 */}
+                  <div className="space-y-3 border rounded-lg p-4 bg-gray-50">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="banner_1" className="text-base font-semibold">Banner 1</Label>
+                      {formData.banner_1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleInputChange('banner_1', '')}
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          Eliminar
+                        </Button>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="banner_1_url">URL de la imagen</Label>
+                      <Input
+                        id="banner_1_url"
+                        value={formData.banner_1}
+                        onChange={(e) => handleInputChange('banner_1', e.target.value)}
+                        placeholder="https://ejemplo.com/banner1.jpg o subir desde PC"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="banner_1_file">O subir imagen desde PC</Label>
+                      <Input
+                        id="banner_1_file"
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) {
+                            // Crear preview local inmediato
+                            const reader = new FileReader()
+                            reader.onload = (e) => {
+                              handleInputChange('banner_1', e.target?.result as string)
+                            }
+                            reader.readAsDataURL(file)
+                          }
+                        }}
+                      />
+                      <p className="text-xs text-gray-500">Formatos: JPG, PNG, GIF, WEBP (Máx. 5MB)</p>
+                    </div>
+
+                    {formData.banner_1 && (
+                      <div className="mt-3">
+                        <Label className="text-sm text-gray-600 mb-2 block">Vista previa:</Label>
+                        <div className="relative w-full h-48 border rounded-lg overflow-hidden bg-white">
+                          <img
+                            src={formData.banner_1}
+                            alt="Vista previa Banner 1"
+                            className="w-full h-full object-contain"
+                            onError={(e) => {
+                              e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23ddd" width="100" height="100"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="monospace" font-size="12" fill="%23999"%3EError al cargar%3C/text%3E%3C/svg%3E'
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Banner 2 */}
+                  <div className="space-y-3 border rounded-lg p-4 bg-gray-50">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="banner_2" className="text-base font-semibold">Banner 2</Label>
+                      {formData.banner_2 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleInputChange('banner_2', '')}
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          Eliminar
+                        </Button>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="banner_2_url">URL de la imagen</Label>
+                      <Input
+                        id="banner_2_url"
+                        value={formData.banner_2}
+                        onChange={(e) => handleInputChange('banner_2', e.target.value)}
+                        placeholder="https://ejemplo.com/banner2.jpg o subir desde PC"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="banner_2_file">O subir imagen desde PC</Label>
+                      <Input
+                        id="banner_2_file"
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) {
+                            const reader = new FileReader()
+                            reader.onload = (e) => {
+                              handleInputChange('banner_2', e.target?.result as string)
+                            }
+                            reader.readAsDataURL(file)
+                          }
+                        }}
+                      />
+                      <p className="text-xs text-gray-500">Formatos: JPG, PNG, GIF, WEBP (Máx. 5MB)</p>
+                    </div>
+
+                    {formData.banner_2 && (
+                      <div className="mt-3">
+                        <Label className="text-sm text-gray-600 mb-2 block">Vista previa:</Label>
+                        <div className="relative w-full h-48 border rounded-lg overflow-hidden bg-white">
+                          <img
+                            src={formData.banner_2}
+                            alt="Vista previa Banner 2"
+                            className="w-full h-full object-contain"
+                            onError={(e) => {
+                              e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23ddd" width="100" height="100"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="monospace" font-size="12" fill="%23999"%3EError al cargar%3C/text%3E%3C/svg%3E'
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Banner 3 */}
+                  <div className="space-y-3 border rounded-lg p-4 bg-gray-50">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="banner_3" className="text-base font-semibold">Banner 3</Label>
+                      {formData.banner_3 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleInputChange('banner_3', '')}
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          Eliminar
+                        </Button>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="banner_3_url">URL de la imagen</Label>
+                      <Input
+                        id="banner_3_url"
+                        value={formData.banner_3}
+                        onChange={(e) => handleInputChange('banner_3', e.target.value)}
+                        placeholder="https://ejemplo.com/banner3.jpg o subir desde PC"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="banner_3_file">O subir imagen desde PC</Label>
+                      <Input
+                        id="banner_3_file"
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) {
+                            const reader = new FileReader()
+                            reader.onload = (e) => {
+                              handleInputChange('banner_3', e.target?.result as string)
+                            }
+                            reader.readAsDataURL(file)
+                          }
+                        }}
+                      />
+                      <p className="text-xs text-gray-500">Formatos: JPG, PNG, GIF, WEBP (Máx. 5MB)</p>
+                    </div>
+
+                    {formData.banner_3 && (
+                      <div className="mt-3">
+                        <Label className="text-sm text-gray-600 mb-2 block">Vista previa:</Label>
+                        <div className="relative w-full h-48 border rounded-lg overflow-hidden bg-white">
+                          <img
+                            src={formData.banner_3}
+                            alt="Vista previa Banner 3"
+                            className="w-full h-full object-contain"
+                            onError={(e) => {
+                              e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23ddd" width="100" height="100"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="monospace" font-size="12" fill="%23999"%3EError al cargar%3C/text%3E%3C/svg%3E'
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <Separator />
+
                 {/* Preview Info */}
                 <div className="bg-blue-50 p-4 rounded-lg">
                   <h4 className="font-semibold text-blue-900 mb-2">Vista previa de la configuración:</h4>

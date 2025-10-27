@@ -222,4 +222,9 @@ export interface ConfiguracionWeb {
   combos_subtitulo?: string
   titulo_seccion_promos?: string
   titulo_seccion_destacados?: string
+
+  // Banners del home
+  banner_1?: string
+  banner_2?: string
+  banner_3?: string
 } 

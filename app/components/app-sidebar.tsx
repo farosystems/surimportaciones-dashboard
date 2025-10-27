@@ -1,6 +1,6 @@
 "use client"
 
-import { Package, CreditCard, Link2, BarChart3, Tag, Award, Settings, MapPin, Layers, PackageOpen } from "lucide-react"
+import { Package, CreditCard, Link2, BarChart3, Tag, Award, Settings, MapPin, Layers, PackageOpen, Percent } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -66,6 +66,11 @@ const menuItems = [
     url: "#productos-plan",
   },
   {
+    title: "Promociones",
+    icon: Percent,
+    url: "#promos",
+  },
+  {
     title: "Configuración",
     icon: Settings,
     url: "#configuracion",
@@ -81,7 +86,7 @@ export function AppSidebar() {
             <CreditCard className="h-4 w-4" />
           </div>
           <div className="flex flex-col">
-            <span className="text-lg font-semibold">MundoCuotas</span>
+            <span className="text-lg font-semibold">Sur Importaciones</span>
             <span className="text-xs text-muted-foreground">Panel Admin</span>
           </div>
         </div>

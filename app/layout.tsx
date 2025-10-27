@@ -5,8 +5,8 @@ import './globals.css'
 import { ClerkProvider } from '@clerk/nextjs'
 
 export const metadata: Metadata = {
-  title: 'MundoCuotas Admin',
-  description: 'Panel de administración para el catálogo de MundoCuotas',
+  title: 'Sur Importaciones Admin',
+  description: 'Panel de administración para el catálogo de Sur Importaciones',
   generator: 'v0.dev',
   icons: {
     icon: '/logo.png',

@@ -21,7 +21,7 @@ NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/dashboard
 
 1. Ve a tu dashboard de Clerk
 2. Navega a "Domains"
-3. Agrega tu dominio de Vercel: `dashboard-administrador-mundocuotas-beta.vercel.app`
+3. Agrega tu dominio de Vercel: `dashboard-administrador-surimportaciones-beta.vercel.app`
 4. Asegúrate de que el dominio esté verificado
 
 ### Paso 3: Verificar Logs de Vercel

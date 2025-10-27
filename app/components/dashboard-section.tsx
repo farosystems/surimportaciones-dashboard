@@ -27,7 +27,7 @@ export function DashboardSection({ productos, planes, productosPorPlan }: Dashbo
     <div className="space-y-6">
       <div>
         <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
-        <p className="text-muted-foreground">Resumen general del sistema MundoCuotas</p>
+        <p className="text-muted-foreground">Resumen general del sistema Sur Importaciones</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

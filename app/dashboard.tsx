@@ -14,6 +14,7 @@ import { ProductosPlanSection } from "./components/productos-plan-section"
 import { ProductosPlanesSection } from "./components/productos-planes-section"
 import { ConfiguracionZonas } from "./components/configuracion-zonas"
 import { ConfiguracionWebComponent } from "./components/configuracion-web"
+import { PromosSection } from "./components/promos-section"
 import { useSupabaseData } from "./hooks/use-supabase-data"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
@@ -148,6 +149,8 @@ function Dashboard() {
         return "Planes Especiales"
       case "productos-planes":
         return "Productos por Planes"
+      case "promos":
+        return "Promociones"
       case "configuracion":
         return "Configuración"
       default:
@@ -266,6 +269,8 @@ function Dashboard() {
             onDeleteProductoPlanDefault={deleteProductoPlanDefault}
           />
         )
+      case "promos":
+        return <PromosSection />
       case "configuracion":
         return (
           <Tabs defaultValue="zonas" className="w-full">
@@ -310,7 +315,7 @@ function Dashboard() {
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem className="hidden md:block">
-                <BreadcrumbLink href="#dashboard">MundoCuotas Admin</BreadcrumbLink>
+                <BreadcrumbLink href="#dashboard">Sur Importaciones Admin</BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator className="hidden md:block" />
               <BreadcrumbItem>
