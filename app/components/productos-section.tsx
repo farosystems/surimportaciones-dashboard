@@ -139,6 +139,14 @@ export const ProductosSection = React.memo(({
     })
   }, [calcularDescuento])
 
+  // Función para formatear fechas sin desfase de zona horaria
+  const formatDateFromDB = (dateString: string): string => {
+    // La fecha viene como "2025-11-03" de PostgreSQL
+    // Parseamos directamente sin crear objeto Date para evitar zona horaria
+    const [year, month, day] = dateString.split('-')
+    return `${day}/${month}/${year}`
+  }
+
   // Filtrado de productos por búsqueda y filtros
   const filteredProductos = useMemo(() => {
     let filtered = productos
@@ -1719,9 +1727,9 @@ export const ProductosSection = React.memo(({
                   <TableCell>
                     {(producto as any).fecha_vigencia_desde && (producto as any).fecha_vigencia_hasta ? (
                       <div className="text-xs">
-                        <div>{new Date((producto as any).fecha_vigencia_desde).toLocaleDateString('es-AR')}</div>
+                        <div>{formatDateFromDB((producto as any).fecha_vigencia_desde)}</div>
                         <div className="text-gray-500">hasta</div>
-                        <div>{new Date((producto as any).fecha_vigencia_hasta).toLocaleDateString('es-AR')}</div>
+                        <div>{formatDateFromDB((producto as any).fecha_vigencia_hasta)}</div>
                       </div>
                     ) : (
                       <span className="text-gray-400 text-xs">-</span>

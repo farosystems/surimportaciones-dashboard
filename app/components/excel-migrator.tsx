@@ -53,6 +53,64 @@ const parseExcelBoolean = (value: any): boolean => {
   return false
 }
 
+// Función para convertir fechas de Excel a formato PostgreSQL (YYYY-MM-DD)
+const parseExcelDate = (value: any): string | undefined => {
+  if (!value) return undefined
+
+  try {
+    // Si es un número (serial date de Excel)
+    if (typeof value === 'number') {
+      // Excel cuenta desde 1900-01-01 (con un bug en 1900)
+      const excelEpoch = new Date(1900, 0, 1)
+      const days = value - 2 // Ajuste por el bug de Excel
+      const date = new Date(excelEpoch.getTime() + days * 24 * 60 * 60 * 1000)
+      return date.toISOString().split('T')[0]
+    }
+
+    // Si es un string con formato d/m/yyyy o dd/mm/yyyy
+    if (typeof value === 'string') {
+      const trimmed = value.trim()
+
+      // Intentar parsear formato día/mes/año (3/11/2025)
+      const parts = trimmed.split('/')
+      if (parts.length === 3) {
+        const day = parseInt(parts[0], 10)
+        const month = parseInt(parts[1], 10)
+        const year = parseInt(parts[2], 10)
+
+        if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+          // Validar rangos
+          if (month >= 1 && month <= 12 && day >= 1 && day <= 31 && year > 1900) {
+            const date = new Date(year, month - 1, day)
+            return date.toISOString().split('T')[0]
+          }
+        }
+      }
+
+      // Si ya está en formato ISO (YYYY-MM-DD)
+      if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+        return trimmed
+      }
+
+      // Intentar parsear como fecha estándar
+      const parsed = new Date(value)
+      if (!isNaN(parsed.getTime())) {
+        return parsed.toISOString().split('T')[0]
+      }
+    }
+
+    // Si es un objeto Date
+    if (value instanceof Date && !isNaN(value.getTime())) {
+      return value.toISOString().split('T')[0]
+    }
+
+    return undefined
+  } catch (error) {
+    console.error('Error parseando fecha:', value, error)
+    return undefined
+  }
+}
+
 export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProductoCreated, onMigrationCompleted }: ExcelMigratorProps) => {
   const [isOpen, setIsOpen] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
@@ -132,8 +190,8 @@ export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProduct
         // Campos de promoción
         precio_oferta: row.precio_oferta ? parseFloat(row.precio_oferta) : undefined,
         descuento_porcentual: row.descuento_porcentual ? parseFloat(row.descuento_porcentual) : undefined,
-        fecha_vigencia_desde: row.fecha_vigencia_desde ? String(row.fecha_vigencia_desde).trim() : undefined,
-        fecha_vigencia_hasta: row.fecha_vigencia_hasta ? String(row.fecha_vigencia_hasta).trim() : undefined
+        fecha_vigencia_desde: parseExcelDate(row.fecha_vigencia_desde),
+        fecha_vigencia_hasta: parseExcelDate(row.fecha_vigencia_hasta)
       }))
 
       setPreviewData(processedData.slice(0, 5)) // Mostrar solo las primeras 5 filas como preview
@@ -304,8 +362,8 @@ export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProduct
             // Campos de promoción
             precio_oferta: rowData.precio_oferta ? parseFloat(rowData.precio_oferta) : undefined,
             descuento_porcentual: rowData.descuento_porcentual ? parseFloat(rowData.descuento_porcentual) : undefined,
-            fecha_vigencia_desde: rowData.fecha_vigencia_desde ? String(rowData.fecha_vigencia_desde).trim() : undefined,
-            fecha_vigencia_hasta: rowData.fecha_vigencia_hasta ? String(rowData.fecha_vigencia_hasta).trim() : undefined
+            fecha_vigencia_desde: parseExcelDate(rowData.fecha_vigencia_desde),
+            fecha_vigencia_hasta: parseExcelDate(rowData.fecha_vigencia_hasta)
           }
 
           // Validaciones básicas
