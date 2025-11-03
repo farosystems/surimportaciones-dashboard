@@ -1,7 +1,8 @@
 "use client"
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react"
-import { Plus, Edit, Trash2, Grid, List, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, X, Bold, Italic, Underline, Type, Palette } from "lucide-react"
+import { Plus, Edit, Trash2, Grid, List, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, X, Bold, Italic, Underline, Type, Palette, Download } from "lucide-react"
+import * as XLSX from 'xlsx'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -11,6 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
+import { Checkbox } from "@/components/ui/checkbox"
 import { ImageUpload } from "./image-upload"
 import { ImageImporter } from "./image-importer"
 import { ExcelMigrator } from "./excel-migrator"
@@ -72,6 +74,8 @@ export const ProductosSection = React.memo(({
   })
   const [currentColor, setCurrentColor] = useState("#000000")
   const [currentColorCode, setCurrentColorCode] = useState("")
+  const [selectedProducts, setSelectedProducts] = useState<Set<number>>(new Set())
+  const [isExporting, setIsExporting] = useState(false)
 
   // Lógica de autocompletado para precio_oferta y descuento_porcentual
   const calcularPrecioOferta = useCallback((precioBase: number, descuento: number) => {
@@ -199,6 +203,72 @@ export const ProductosSection = React.memo(({
   const handlePageChange = (page: number) => {
     setCurrentPage(page)
     window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  // Funciones de selección de productos (definidas después de currentProductos)
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      // Seleccionar TODOS los productos filtrados, no solo los de la página actual
+      setSelectedProducts(new Set(filteredProductos.map(p => p.id)))
+    } else {
+      setSelectedProducts(new Set())
+    }
+  }
+
+  const handleSelectProduct = (productId: number, checked: boolean) => {
+    setSelectedProducts(prev => {
+      const newSet = new Set(prev)
+      if (checked) {
+        newSet.add(productId)
+      } else {
+        newSet.delete(productId)
+      }
+      return newSet
+    })
+  }
+
+  // Función de exportación a Excel
+  const handleExportToExcel = async () => {
+    if (selectedProducts.size === 0) {
+      alert('Por favor selecciona al menos un producto para exportar')
+      return
+    }
+
+    setIsExporting(true)
+    try {
+      const productosAExportar = productos.filter(p => selectedProducts.has(p.id))
+
+      const dataToExport = productosAExportar.map(producto => ({
+        "Artículo": producto.codigo || '',
+        "Desc. artículo": producto.descripcion,
+        "Precio": producto.precio,
+        "Agrupación": producto.categoria?.descripcion || '',
+        "Marca": producto.marca?.descripcion || '',
+        "Linea": categorias.find(c => c.id === producto.fk_id_categoria)?.fk_id_linea
+          ? lineas.find(l => l.id === categorias.find(c => c.id === producto.fk_id_categoria)?.fk_id_linea)?.descripcion || ''
+          : '',
+        aplica_todos_plan: producto.aplica_todos_plan,
+        precio_oferta: (producto as any).precio_oferta || '',
+        descuento_porcentual: (producto as any).descuento_porcentual || '',
+        fecha_vigencia_desde: (producto as any).fecha_vigencia_desde || '',
+        fecha_vigencia_hasta: (producto as any).fecha_vigencia_hasta || ''
+      }))
+
+      const worksheet = XLSX.utils.json_to_sheet(dataToExport)
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Productos")
+
+      const fecha = new Date().toISOString().split('T')[0]
+      XLSX.writeFile(workbook, `productos_exportados_${fecha}.xlsx`)
+
+      // Limpiar selección después de exportar
+      setSelectedProducts(new Set())
+    } catch (error) {
+      console.error('Error exportando a Excel:', error)
+      alert('Error al exportar los productos')
+    } finally {
+      setIsExporting(false)
+    }
   }
 
   // Resetear página cuando cambie la vista, el número de productos, el término de búsqueda o los filtros
@@ -725,7 +795,7 @@ export const ProductosSection = React.memo(({
         <CardHeader>
           <div className="flex items-center justify-between">
         <CardTitle>Gestión de Productos</CardTitle>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center gap-2">
           <div className="flex items-center border rounded-lg p-1">
             <Button
               variant={viewMode === 'table' ? 'default' : 'ghost'}
@@ -744,6 +814,18 @@ export const ProductosSection = React.memo(({
               <Grid className="h-4 w-4" />
             </Button>
           </div>
+              {selectedProducts.size > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportToExcel}
+                  disabled={isExporting}
+                  className="bg-green-50 hover:bg-green-100 text-green-700 border-green-300"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  {isExporting ? "Exportando..." : `Exportar (${selectedProducts.size})`}
+                </Button>
+              )}
               <ImageImporter productos={productos} onUpdateProducto={onUpdateProducto} />
               <CodigoMigrator 
                 productos={productos}
@@ -1442,8 +1524,24 @@ export const ProductosSection = React.memo(({
         </div>
       </CardHeader>
         
-        {/* Filtros */}
+        {/* Filtros y contador de selección */}
         <div className="px-6 py-4 border-b bg-gray-50">
+          {selectedProducts.size > 0 && (
+            <div className="mb-3 flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
+              <span className="text-sm text-blue-700 font-medium">
+                {selectedProducts.size} producto{selectedProducts.size !== 1 ? 's' : ''} seleccionado{selectedProducts.size !== 1 ? 's' : ''}
+                {filteredProductos.length > 0 && ` de ${filteredProductos.length} total${filteredProductos.length !== 1 ? 'es' : ''}`}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedProducts(new Set())}
+                className="text-blue-700 hover:text-blue-900 hover:bg-blue-100"
+              >
+                Limpiar selección
+              </Button>
+            </div>
+          )}
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -1504,6 +1602,14 @@ export const ProductosSection = React.memo(({
           <Table>
             <TableHeader>
                           <TableRow>
+              <TableHead className="w-12">
+                <Checkbox
+                  checked={filteredProductos.length > 0 && filteredProductos.every(p => selectedProducts.has(p.id))}
+                  onCheckedChange={handleSelectAll}
+                  aria-label="Seleccionar todos los productos"
+                  title={`Seleccionar todos (${filteredProductos.length} productos)`}
+                />
+              </TableHead>
               <TableHead>Código</TableHead>
               <TableHead>Descripción</TableHead>
               <TableHead>Desc. Det.</TableHead>
@@ -1524,6 +1630,13 @@ export const ProductosSection = React.memo(({
             <TableBody>
                   {currentProductos.map((producto) => (
                 <TableRow key={producto.id}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedProducts.has(producto.id)}
+                      onCheckedChange={(checked) => handleSelectProduct(producto.id, checked as boolean)}
+                      aria-label={`Seleccionar ${producto.descripcion}`}
+                    />
+                  </TableCell>
                   <TableCell>
                     {producto.codigo ? (
                       <span 

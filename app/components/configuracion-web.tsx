@@ -13,7 +13,7 @@ import { Switch } from "@/components/ui/switch"
 import { ConfiguracionWeb, PlanFinanciacion, Categoria, Marca } from "@/lib/supabase"
 
 interface ConfiguracionWebProps {
-  configuracionWeb?: ConfiguracionWeb
+  configuracionWeb?: ConfiguracionWeb | null
   onUpdateConfiguracionWeb: (updates: Partial<ConfiguracionWeb>) => Promise<ConfiguracionWeb | undefined>
   planes?: PlanFinanciacion[]
   categorias?: Categoria[]
