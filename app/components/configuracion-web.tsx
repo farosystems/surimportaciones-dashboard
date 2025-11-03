@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { ConfiguracionWeb, PlanFinanciacion, Categoria, Marca } from "@/lib/supabase"
+import { ConfiguracionWeb, PlanFinanciacion, Categoria, Marca, supabase } from "@/lib/supabase"
 
 interface ConfiguracionWebProps {
   configuracionWeb?: ConfiguracionWeb | null
@@ -129,38 +129,44 @@ export function ConfiguracionWebComponent({
 
   const handleImageUpload = async (field: 'banner_1' | 'banner_2' | 'banner_3', file: File) => {
     try {
+      setIsLoading(true)
+
+      // Validar tamaño (máx 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('La imagen es demasiado grande. Tamaño máximo: 5MB')
+        return
+      }
+
       const fileExt = file.name.split('.').pop()
       const fileName = `banner-${Date.now()}.${fileExt}`
       const filePath = `banners/${fileName}`
 
-      const { data, error } = await fetch('/api/upload-image', {
-        method: 'POST',
-        body: JSON.stringify({
-          file: await fileToBase64(file),
-          fileName: filePath
-        }),
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      }).then(res => res.json())
+      // Subir a Supabase Storage
+      const { data, error } = await supabase.storage
+        .from('imagenes')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        })
 
-      if (error) throw error
+      if (error) {
+        console.error('Error de Supabase Storage:', error)
+        throw error
+      }
 
-      const publicUrl = data.publicUrl
+      // Obtener URL pública
+      const { data: { publicUrl } } = supabase.storage
+        .from('imagenes')
+        .getPublicUrl(filePath)
+
+      console.log('Imagen subida exitosamente:', publicUrl)
       handleInputChange(field, publicUrl)
     } catch (error) {
       console.error('Error al subir imagen:', error)
-      alert('Error al subir la imagen')
+      alert('Error al subir la imagen. Por favor intenta nuevamente.')
+    } finally {
+      setIsLoading(false)
     }
-  }
-
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.readAsDataURL(file)
-      reader.onload = () => resolve(reader.result as string)
-      reader.onerror = error => reject(error)
-    })
   }
 
   return (
@@ -594,15 +600,10 @@ export function ConfiguracionWebComponent({
                         id="banner_1_file"
                         type="file"
                         accept="image/*"
-                        onChange={(e) => {
+                        onChange={async (e) => {
                           const file = e.target.files?.[0]
                           if (file) {
-                            // Crear preview local inmediato
-                            const reader = new FileReader()
-                            reader.onload = (e) => {
-                              handleInputChange('banner_1', e.target?.result as string)
-                            }
-                            reader.readAsDataURL(file)
+                            await handleImageUpload('banner_1', file)
                           }
                         }}
                       />
@@ -659,14 +660,10 @@ export function ConfiguracionWebComponent({
                         id="banner_2_file"
                         type="file"
                         accept="image/*"
-                        onChange={(e) => {
+                        onChange={async (e) => {
                           const file = e.target.files?.[0]
                           if (file) {
-                            const reader = new FileReader()
-                            reader.onload = (e) => {
-                              handleInputChange('banner_2', e.target?.result as string)
-                            }
-                            reader.readAsDataURL(file)
+                            await handleImageUpload('banner_2', file)
                           }
                         }}
                       />
@@ -723,14 +720,10 @@ export function ConfiguracionWebComponent({
                         id="banner_3_file"
                         type="file"
                         accept="image/*"
-                        onChange={(e) => {
+                        onChange={async (e) => {
                           const file = e.target.files?.[0]
                           if (file) {
-                            const reader = new FileReader()
-                            reader.onload = (e) => {
-                              handleInputChange('banner_3', e.target?.result as string)
-                            }
-                            reader.readAsDataURL(file)
+                            await handleImageUpload('banner_3', file)
                           }
                         }}
                       />

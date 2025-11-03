@@ -1007,6 +1007,8 @@ export function useSupabaseData() {
         throw error
       } else {
         // Si existe, actualizar
+        console.log('Actualizando configuracion_web con:', updates)
+
         const { data: updatedData, error: updateError } = await supabase
           .from('configuracion_web')
           .update(updates)
@@ -1014,7 +1016,10 @@ export function useSupabaseData() {
           .select()
           .single()
 
-        if (updateError) throw updateError
+        if (updateError) {
+          console.error('Error de Supabase:', updateError)
+          throw updateError
+        }
         setConfiguracionWeb(updatedData)
         return updatedData
       }
