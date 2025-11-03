@@ -64,10 +64,76 @@ export const ProductosSection = React.memo(({
     tiene_stock: true,
     aplica_todos_plan: false,
     aplica_solo_categoria: false,
-    aplica_plan_especial: false
+    aplica_plan_especial: false,
+    precio_oferta: "",
+    descuento_porcentual: "",
+    fecha_vigencia_desde: "",
+    fecha_vigencia_hasta: ""
   })
   const [currentColor, setCurrentColor] = useState("#000000")
   const [currentColorCode, setCurrentColorCode] = useState("")
+
+  // Lógica de autocompletado para precio_oferta y descuento_porcentual
+  const calcularPrecioOferta = useCallback((precioBase: number, descuento: number) => {
+    if (precioBase <= 0 || descuento < 0 || descuento > 100) return ""
+    const precioOferta = precioBase * (1 - descuento / 100)
+    return precioOferta.toFixed(2)
+  }, [])
+
+  const calcularDescuento = useCallback((precioBase: number, precioOferta: number) => {
+    if (precioBase <= 0 || precioOferta < 0 || precioOferta > precioBase) return ""
+    const descuento = ((precioBase - precioOferta) / precioBase) * 100
+    return descuento.toFixed(2)
+  }, [])
+
+  const handlePrecioChange = useCallback((precio: string) => {
+    setFormData(prev => {
+      const precioNum = parseFloat(precio)
+      const newData = { ...prev, precio }
+
+      // Si hay descuento, recalcular precio_oferta
+      if (prev.descuento_porcentual && !isNaN(precioNum)) {
+        const descuentoNum = parseFloat(prev.descuento_porcentual)
+        newData.precio_oferta = calcularPrecioOferta(precioNum, descuentoNum)
+      }
+
+      return newData
+    })
+  }, [calcularPrecioOferta])
+
+  const handleDescuentoChange = useCallback((descuento: string) => {
+    setFormData(prev => {
+      const descuentoNum = parseFloat(descuento)
+      const precioNum = parseFloat(prev.precio)
+
+      if (!isNaN(precioNum) && !isNaN(descuentoNum) && descuentoNum >= 0 && descuentoNum <= 100) {
+        return {
+          ...prev,
+          descuento_porcentual: descuento,
+          precio_oferta: calcularPrecioOferta(precioNum, descuentoNum)
+        }
+      }
+
+      return { ...prev, descuento_porcentual: descuento }
+    })
+  }, [calcularPrecioOferta])
+
+  const handlePrecioOfertaChange = useCallback((precioOferta: string) => {
+    setFormData(prev => {
+      const precioOfertaNum = parseFloat(precioOferta)
+      const precioNum = parseFloat(prev.precio)
+
+      if (!isNaN(precioNum) && !isNaN(precioOfertaNum) && precioOfertaNum >= 0) {
+        return {
+          ...prev,
+          precio_oferta: precioOferta,
+          descuento_porcentual: calcularDescuento(precioNum, precioOfertaNum)
+        }
+      }
+
+      return { ...prev, precio_oferta: precioOferta }
+    })
+  }, [calcularDescuento])
 
   // Filtrado de productos por búsqueda y filtros
   const filteredProductos = useMemo(() => {
@@ -354,7 +420,11 @@ export const ProductosSection = React.memo(({
       tiene_stock: true,
       aplica_todos_plan: false,
       aplica_solo_categoria: false,
-      aplica_plan_especial: false
+      aplica_plan_especial: false,
+      precio_oferta: "",
+      descuento_porcentual: "",
+      fecha_vigencia_desde: "",
+      fecha_vigencia_hasta: ""
     })
     setEditingProduct(null)
     setCurrentImageIndex(0)
@@ -386,7 +456,11 @@ export const ProductosSection = React.memo(({
       tiene_stock: producto.tiene_stock ?? true,
       aplica_todos_plan: producto.aplica_todos_plan || false,
       aplica_solo_categoria: producto.aplica_solo_categoria || false,
-      aplica_plan_especial: producto.aplica_plan_especial || false
+      aplica_plan_especial: producto.aplica_plan_especial || false,
+      precio_oferta: (producto as any).precio_oferta?.toString() || "",
+      descuento_porcentual: (producto as any).descuento_porcentual?.toString() || "",
+      fecha_vigencia_desde: (producto as any).fecha_vigencia_desde || "",
+      fecha_vigencia_hasta: (producto as any).fecha_vigencia_hasta || ""
     })
     setCurrentImageIndex(0)
     setTimeout(() => {
@@ -465,7 +539,11 @@ export const ProductosSection = React.memo(({
         tiene_stock: formData.tiene_stock,
         aplica_todos_plan: formData.aplica_todos_plan,
         aplica_solo_categoria: formData.aplica_solo_categoria,
-        aplica_plan_especial: formData.aplica_plan_especial
+        aplica_plan_especial: formData.aplica_plan_especial,
+        precio_oferta: formData.precio_oferta ? parseFloat(formData.precio_oferta) : undefined,
+        descuento_porcentual: formData.descuento_porcentual ? parseFloat(formData.descuento_porcentual) : undefined,
+        fecha_vigencia_desde: formData.fecha_vigencia_desde || undefined,
+        fecha_vigencia_hasta: formData.fecha_vigencia_hasta || undefined
       }
 
       console.log('Guardando producto con imágenes:', {
@@ -751,10 +829,68 @@ export const ProductosSection = React.memo(({
                     type="number"
                     step="0.01"
                     value={formData.precio}
-                    onChange={(e) => setFormData({ ...formData, precio: e.target.value })}
+                    onChange={(e) => handlePrecioChange(e.target.value)}
                     required
                     disabled={isCreating}
                   />
+                </div>
+              </div>
+
+              {/* Campos de promoción */}
+              <div className="border-t pt-4 space-y-3">
+                <Label className="text-base font-semibold">Promoción / Oferta</Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="descuento_porcentual">Descuento (%)</Label>
+                    <Input
+                      id="descuento_porcentual"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      value={formData.descuento_porcentual}
+                      onChange={(e) => handleDescuentoChange(e.target.value)}
+                      placeholder="Ej: 15"
+                      disabled={isCreating}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Se calculará automáticamente el precio oferta</p>
+                  </div>
+                  <div>
+                    <Label htmlFor="precio_oferta">Precio Oferta</Label>
+                    <Input
+                      id="precio_oferta"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.precio_oferta}
+                      onChange={(e) => handlePrecioOfertaChange(e.target.value)}
+                      placeholder="Ej: 42500"
+                      disabled={isCreating}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Se calculará automáticamente el descuento</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="fecha_vigencia_desde">Vigencia Desde</Label>
+                    <Input
+                      id="fecha_vigencia_desde"
+                      type="date"
+                      value={formData.fecha_vigencia_desde}
+                      onChange={(e) => setFormData({ ...formData, fecha_vigencia_desde: e.target.value })}
+                      disabled={isCreating}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="fecha_vigencia_hasta">Vigencia Hasta</Label>
+                    <Input
+                      id="fecha_vigencia_hasta"
+                      type="date"
+                      value={formData.fecha_vigencia_hasta}
+                      onChange={(e) => setFormData({ ...formData, fecha_vigencia_hasta: e.target.value })}
+                      disabled={isCreating}
+                    />
+                  </div>
                 </div>
               </div>
               
@@ -1375,6 +1511,9 @@ export const ProductosSection = React.memo(({
               <TableHead>Categoría</TableHead>
               <TableHead>Marca</TableHead>
               <TableHead>Precio</TableHead>
+              <TableHead>Precio Oferta</TableHead>
+              <TableHead>Descuento</TableHead>
+              <TableHead>Vigencia</TableHead>
               <TableHead>Destacado</TableHead>
                     <TableHead>Activo</TableHead>
               <TableHead>Stock</TableHead>
@@ -1446,6 +1585,35 @@ export const ProductosSection = React.memo(({
                   <TableCell>{producto.categoria?.descripcion || '-'}</TableCell>
                   <TableCell>{producto.marca?.descripcion || '-'}</TableCell>
                   <TableCell>{formatPrice(producto.precio)}</TableCell>
+                  <TableCell>
+                    {(producto as any).precio_oferta ? (
+                      <span className="text-green-600 font-semibold">
+                        {formatPrice((producto as any).precio_oferta)}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 text-xs">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {(producto as any).descuento_porcentual ? (
+                      <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-semibold">
+                        {(producto as any).descuento_porcentual}%
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 text-xs">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {(producto as any).fecha_vigencia_desde && (producto as any).fecha_vigencia_hasta ? (
+                      <div className="text-xs">
+                        <div>{new Date((producto as any).fecha_vigencia_desde).toLocaleDateString('es-AR')}</div>
+                        <div className="text-gray-500">hasta</div>
+                        <div>{new Date((producto as any).fecha_vigencia_hasta).toLocaleDateString('es-AR')}</div>
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 text-xs">-</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <span
                       className={`px-2 py-1 rounded-full text-xs ${

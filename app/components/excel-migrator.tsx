@@ -27,6 +27,10 @@ interface ProductoExcel {
   marca: string
   linea: string
   aplica_todos_plan: boolean
+  precio_oferta?: number
+  descuento_porcentual?: number
+  fecha_vigencia_desde?: string
+  fecha_vigencia_hasta?: string
 }
 
 interface MigrationResult {
@@ -65,9 +69,13 @@ export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProduct
         "Precio": 150000.00,
         "Artículo": "NB-HP-001",
         "Agrupación": "Notebooks",
-        "Marca": "HP", 
+        "Marca": "HP",
         "Linea": "Tecnología",
-        aplica_todos_plan: true
+        aplica_todos_plan: true,
+        descuento_porcentual: 10,
+        precio_oferta: 135000.00,
+        fecha_vigencia_desde: "2025-11-01",
+        fecha_vigencia_hasta: "2025-12-31"
       },
       {
         "Desc. artículo": "Ejemplo: Mouse Logitech",
@@ -75,8 +83,12 @@ export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProduct
         "Artículo": "MS-LG-001",
         "Agrupación": "Accesorios",
         "Marca": "Logitech",
-        "Linea": "Tecnología", 
-        aplica_todos_plan: false
+        "Linea": "Tecnología",
+        aplica_todos_plan: false,
+        descuento_porcentual: 15,
+        precio_oferta: 4250.00,
+        fecha_vigencia_desde: "2025-11-15",
+        fecha_vigencia_hasta: "2025-11-30"
       }
     ]
 
@@ -116,7 +128,12 @@ export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProduct
         // Línea: acepta "linea" o "Linea"
         linea: String(row.linea || row['Linea'] || '').trim(),
         // aplica_todos_plan: convertir correctamente true/false desde Excel
-        aplica_todos_plan: parseExcelBoolean(row.aplica_todos_plan)
+        aplica_todos_plan: parseExcelBoolean(row.aplica_todos_plan),
+        // Campos de promoción
+        precio_oferta: row.precio_oferta ? parseFloat(row.precio_oferta) : undefined,
+        descuento_porcentual: row.descuento_porcentual ? parseFloat(row.descuento_porcentual) : undefined,
+        fecha_vigencia_desde: row.fecha_vigencia_desde ? String(row.fecha_vigencia_desde).trim() : undefined,
+        fecha_vigencia_hasta: row.fecha_vigencia_hasta ? String(row.fecha_vigencia_hasta).trim() : undefined
       }))
 
       setPreviewData(processedData.slice(0, 5)) // Mostrar solo las primeras 5 filas como preview
@@ -283,7 +300,12 @@ export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProduct
             marca: String(rowData.marca || rowData['Marca'] || '').trim(),
             // Línea: acepta "linea" o "Linea"
             linea: String(rowData.linea || rowData['Linea'] || '').trim(),
-            aplica_todos_plan: parseExcelBoolean(rowData.aplica_todos_plan)
+            aplica_todos_plan: parseExcelBoolean(rowData.aplica_todos_plan),
+            // Campos de promoción
+            precio_oferta: rowData.precio_oferta ? parseFloat(rowData.precio_oferta) : undefined,
+            descuento_porcentual: rowData.descuento_porcentual ? parseFloat(rowData.descuento_porcentual) : undefined,
+            fecha_vigencia_desde: rowData.fecha_vigencia_desde ? String(rowData.fecha_vigencia_desde).trim() : undefined,
+            fecha_vigencia_hasta: rowData.fecha_vigencia_hasta ? String(rowData.fecha_vigencia_hasta).trim() : undefined
           }
 
           // Validaciones básicas
@@ -381,22 +403,42 @@ export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProduct
             const precioDiferente = Math.abs(precioActual - precioNuevo) > 0.01 // Comparar con tolerancia para decimales
             const categoriaDiferente = categoriaActual !== categoriaNueva
 
+            // Comparar campos de promoción
+            const precioOfertaActual = (productoExistente as any).precio_oferta
+            const precioOfertaNuevo = productoData.precio_oferta
+            const descuentoActual = (productoExistente as any).descuento_porcentual
+            const descuentoNuevo = productoData.descuento_porcentual
+            const fechaDesdeActual = (productoExistente as any).fecha_vigencia_desde
+            const fechaDesdeNueva = productoData.fecha_vigencia_desde
+            const fechaHastaActual = (productoExistente as any).fecha_vigencia_hasta
+            const fechaHastaNueva = productoData.fecha_vigencia_hasta
+
+            const precioOfertaDiferente = precioOfertaActual !== precioOfertaNuevo
+            const descuentoDiferente = descuentoActual !== descuentoNuevo
+            const fechaDesdeDiferente = fechaDesdeActual !== fechaDesdeNueva
+            const fechaHastaDiferente = fechaHastaActual !== fechaHastaNueva
+
             console.log(`  - Descripción diferente: ${descripcionDiferente}`)
             console.log(`  - Precio diferente: ${precioDiferente}`)
             console.log(`  - Categoría diferente: ${categoriaDiferente}`)
+            console.log(`  - Precio oferta diferente: ${precioOfertaDiferente}`)
+            console.log(`  - Descuento diferente: ${descuentoDiferente}`)
+            console.log(`  - Fecha desde diferente: ${fechaDesdeDiferente}`)
+            console.log(`  - Fecha hasta diferente: ${fechaHastaDiferente}`)
 
-            if (!descripcionDiferente && !precioDiferente && !categoriaDiferente) {
-              // Ni la descripción, ni el precio, ni la categoría son diferentes, no hacer nada
+            if (!descripcionDiferente && !precioDiferente && !categoriaDiferente &&
+                !precioOfertaDiferente && !descuentoDiferente && !fechaDesdeDiferente && !fechaHastaDiferente) {
+              // Ningún campo es diferente, no hacer nada
               results.push({
                 row: rowNumber,
                 descripcion: productoData.descripcion,
                 codigo: productoData.codigo,
                 status: 'skipped',
-                message: `Producto con código "${productoData.codigo}" ya tiene la misma descripción, precio y categoría (ID: ${productoExistente.id})`,
+                message: `Producto con código "${productoData.codigo}" ya tiene los mismos datos (ID: ${productoExistente.id})`,
                 data: productoData
               })
             } else {
-              // Al menos uno es diferente, actualizar descripción, precio y/o categoría
+              // Al menos uno es diferente, actualizar campos
               try {
                 const camposAActualizar: any = {}
                 const cambios: string[] = []
@@ -419,6 +461,31 @@ export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProduct
                   const categoriaNuevaNombre = categorias.find(c => c.id === categoriaNueva)?.descripcion || productoData.categoria
                   cambios.push(`categoría: "${categoriaActualNombre}" → "${categoriaNuevaNombre}"`)
                   console.log(`🔄 Actualizando categoría: "${categoriaActualNombre}" → "${categoriaNuevaNombre}"`)
+                }
+
+                // Actualizar campos de promoción
+                if (precioOfertaDiferente) {
+                  camposAActualizar.precio_oferta = productoData.precio_oferta
+                  cambios.push(`precio oferta: ${precioOfertaActual || 'sin oferta'} → ${precioOfertaNuevo || 'sin oferta'}`)
+                  console.log(`🔄 Actualizando precio oferta: ${precioOfertaActual} → ${precioOfertaNuevo}`)
+                }
+
+                if (descuentoDiferente) {
+                  camposAActualizar.descuento_porcentual = productoData.descuento_porcentual
+                  cambios.push(`descuento: ${descuentoActual || 0}% → ${descuentoNuevo || 0}%`)
+                  console.log(`🔄 Actualizando descuento: ${descuentoActual}% → ${descuentoNuevo}%`)
+                }
+
+                if (fechaDesdeDiferente) {
+                  camposAActualizar.fecha_vigencia_desde = productoData.fecha_vigencia_desde
+                  cambios.push(`vigencia desde: ${fechaDesdeActual || 'sin fecha'} → ${fechaDesdeNueva || 'sin fecha'}`)
+                  console.log(`🔄 Actualizando fecha desde: ${fechaDesdeActual} → ${fechaDesdeNueva}`)
+                }
+
+                if (fechaHastaDiferente) {
+                  camposAActualizar.fecha_vigencia_hasta = productoData.fecha_vigencia_hasta
+                  cambios.push(`vigencia hasta: ${fechaHastaActual || 'sin fecha'} → ${fechaHastaNueva || 'sin fecha'}`)
+                  console.log(`🔄 Actualizando fecha hasta: ${fechaHastaActual} → ${fechaHastaNueva}`)
                 }
                 
                 console.log(`🔄 Actualizando producto ${productoExistente.id} con cambios:`, camposAActualizar)
@@ -491,7 +558,11 @@ export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProduct
             fk_id_categoria: categoriaId,
             fk_id_marca: marcaId,
             aplica_todos_plan: productoData.aplica_todos_plan,
-            activo: true
+            activo: true,
+            precio_oferta: productoData.precio_oferta,
+            descuento_porcentual: productoData.descuento_porcentual,
+            fecha_vigencia_desde: productoData.fecha_vigencia_desde,
+            fecha_vigencia_hasta: productoData.fecha_vigencia_hasta
           }
 
           console.log(`🆕 Creando producto:`, nuevoProducto)
@@ -621,6 +692,7 @@ export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProduct
             <h3 className="font-medium text-blue-800 mb-2">Instrucciones:</h3>
             <ul className="text-sm text-blue-700 space-y-1">
               <li>• <strong>Columnas requeridas:</strong> descripción, precio, código, categoría, marca, línea, aplica_todos_plan</li>
+              <li>• <strong>Columnas opcionales de promoción:</strong> descuento_porcentual, precio_oferta, fecha_vigencia_desde, fecha_vigencia_hasta</li>
               <li>• <strong>Nombres alternativos aceptados:</strong></li>
               <li>&nbsp;&nbsp;- Descripción: "descripcion" o "Desc. artículo"</li>
               <li>&nbsp;&nbsp;- Código: "codigo" o "Artículo"</li>
@@ -628,8 +700,9 @@ export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProduct
               <li>&nbsp;&nbsp;- Categoría: "categoria" o "Agrupación"</li>
               <li>&nbsp;&nbsp;- Marca: "marca" o "Marca"</li>
               <li>&nbsp;&nbsp;- Línea: "linea" o "Linea"</li>
+              <li>• <strong>Promociones:</strong> Puedes ingresar solo descuento_porcentual O solo precio_oferta. El otro valor se calculará automáticamente</li>
               <li>• <strong>Búsqueda inteligente:</strong> Primero busca por código, luego por descripción</li>
-              <li>• <strong>Si encuentra por código:</strong> 
+              <li>• <strong>Si encuentra por código:</strong>
                 <ul className="ml-4 mt-1">
                   <li>- Si la descripción o precio son diferentes: Actualiza SOLO descripción y/o precio</li>
                   <li>- Si descripción y precio son iguales: Se omite (sin cambios)</li>

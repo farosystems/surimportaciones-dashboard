@@ -1,6 +1,6 @@
 -- Crear tabla de promociones
 CREATE TABLE IF NOT EXISTS promos (
-  id BIGSERIAL PRIMARY KEY,
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   nombre VARCHAR(255) NOT NULL,
   descripcion TEXT,
   descuento_porcentaje DECIMAL(5,2) NOT NULL CHECK (descuento_porcentaje >= 0 AND descuento_porcentaje <= 100),
@@ -14,9 +14,9 @@ CREATE TABLE IF NOT EXISTS promos (
 
 -- Crear tabla de relación productos-promociones
 CREATE TABLE IF NOT EXISTS promo_productos (
-  id BIGSERIAL PRIMARY KEY,
-  promo_id BIGINT NOT NULL REFERENCES promos(id) ON DELETE CASCADE,
-  producto_id BIGINT NOT NULL REFERENCES productos(id) ON DELETE CASCADE,
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  promo_id UUID NOT NULL REFERENCES promos(id) ON DELETE CASCADE,
+  producto_id UUID NOT NULL REFERENCES productos(id) ON DELETE CASCADE,
   created_at TIMESTAMP DEFAULT NOW(),
   UNIQUE(promo_id, producto_id)
 );
