@@ -187,9 +187,9 @@ export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProduct
         linea: String(row.linea || row['Linea'] || '').trim(),
         // aplica_todos_plan: convertir correctamente true/false desde Excel
         aplica_todos_plan: parseExcelBoolean(row.aplica_todos_plan),
-        // Campos de promoción
-        precio_oferta: row.precio_oferta ? parseFloat(row.precio_oferta) : undefined,
-        descuento_porcentual: row.descuento_porcentual ? parseFloat(row.descuento_porcentual) : undefined,
+        // Campos de promoción - Usar != null para permitir 0 como valor válido
+        precio_oferta: row.precio_oferta != null ? parseFloat(row.precio_oferta) : undefined,
+        descuento_porcentual: row.descuento_porcentual != null ? parseFloat(row.descuento_porcentual) : undefined,
         fecha_vigencia_desde: parseExcelDate(row.fecha_vigencia_desde),
         fecha_vigencia_hasta: parseExcelDate(row.fecha_vigencia_hasta)
       }))
@@ -359,9 +359,9 @@ export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProduct
             // Línea: acepta "linea" o "Linea"
             linea: String(rowData.linea || rowData['Linea'] || '').trim(),
             aplica_todos_plan: parseExcelBoolean(rowData.aplica_todos_plan),
-            // Campos de promoción
-            precio_oferta: rowData.precio_oferta ? parseFloat(rowData.precio_oferta) : undefined,
-            descuento_porcentual: rowData.descuento_porcentual ? parseFloat(rowData.descuento_porcentual) : undefined,
+            // Campos de promoción - Usar != null para permitir 0 como valor válido
+            precio_oferta: rowData.precio_oferta != null ? parseFloat(rowData.precio_oferta) : undefined,
+            descuento_porcentual: rowData.descuento_porcentual != null ? parseFloat(rowData.descuento_porcentual) : undefined,
             fecha_vigencia_desde: parseExcelDate(rowData.fecha_vigencia_desde),
             fecha_vigencia_hasta: parseExcelDate(rowData.fecha_vigencia_hasta)
           }
