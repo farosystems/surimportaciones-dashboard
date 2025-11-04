@@ -119,11 +119,6 @@ export function PromoModal({ open, onOpenChange, promo, onSuccess }: PromoModalP
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (selectedProductos.size === 0) {
-      toast.error("Selecciona al menos un producto")
-      return
-    }
-
     setLoading(true)
     try {
       const promoData = {
@@ -147,11 +142,16 @@ export function PromoModal({ open, onOpenChange, promo, onSuccess }: PromoModalP
         if (updateError) throw updateError
         promoId = promo.id
 
-        // Eliminar productos anteriores
-        await supabase
+        // Eliminar TODOS los productos anteriores
+        const { error: deleteError } = await supabase
           .from("promo_productos")
           .delete()
           .eq("promo_id", promoId)
+
+        if (deleteError) {
+          console.error("Error eliminando productos anteriores:", deleteError)
+          throw deleteError
+        }
       } else {
         // Crear nueva promo
         const { data: newPromo, error: insertError } = await supabase
@@ -164,17 +164,22 @@ export function PromoModal({ open, onOpenChange, promo, onSuccess }: PromoModalP
         promoId = newPromo.id
       }
 
-      // Insertar productos seleccionados
-      const promoProductos = Array.from(selectedProductos).map(productoId => ({
-        promo_id: promoId,
-        producto_id: productoId
-      }))
+      // Insertar productos seleccionados (solo si hay productos)
+      if (selectedProductos.size > 0) {
+        const promoProductos = Array.from(selectedProductos).map(productoId => ({
+          promo_id: promoId,
+          producto_id: productoId
+        }))
 
-      const { error: productosError } = await supabase
-        .from("promo_productos")
-        .insert(promoProductos)
+        const { error: productosError } = await supabase
+          .from("promo_productos")
+          .insert(promoProductos)
 
-      if (productosError) throw productosError
+        if (productosError) {
+          console.error("Error insertando productos:", productosError)
+          throw productosError
+        }
+      }
 
       toast.success(promo?.id ? "Promo actualizada" : "Promo creada exitosamente")
       onSuccess()
