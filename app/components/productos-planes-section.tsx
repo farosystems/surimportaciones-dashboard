@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase"
-import { Plus, Edit, Trash2, Search, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
+import { Plus, Edit, Trash2, Search, Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -43,6 +43,13 @@ export const ProductosPlanesSection = React.memo(({
   const [filterCategoria, setFilterCategoria] = useState("all")
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 20
+
+  // Estados para asociación masiva
+  const [isMassAssociateOpen, setIsMassAssociateOpen] = useState(false)
+  const [selectedPlanForMass, setSelectedPlanForMass] = useState<string>("")
+  const [isProcessingMass, setIsProcessingMass] = useState(false)
+  const [massProgress, setMassProgress] = useState(0)
+  const [massResults, setMassResults] = useState<{added: number, skipped: number}>({added: 0, skipped: 0})
 
   const [formData, setFormData] = useState({
     tipo_asociacion: "producto" as "producto" | "combo",
@@ -89,6 +96,95 @@ export const ProductosPlanesSection = React.memo(({
     setSelectedProductName("")
     setShowProductSuggestions(false)
     setEditingProductoPlanDefault(null)
+  }
+
+  const handleMassAssociate = async () => {
+    if (!selectedPlanForMass) {
+      alert('Por favor selecciona un plan')
+      return
+    }
+
+    const confirmacion = confirm(`¿Estás seguro de asociar TODOS los productos al plan seleccionado?\n\nEsto puede tomar varios minutos.`)
+    if (!confirmacion) return
+
+    setIsProcessingMass(true)
+    setMassProgress(0)
+    setMassResults({added: 0, skipped: 0})
+
+    try {
+      const planId = parseInt(selectedPlanForMass)
+
+      // Obtener productos ya asociados desde la BD directamente
+      const { data: asociacionesExistentes, error: fetchError } = await supabase
+        .from('producto_planes_default')
+        .select('fk_id_producto')
+        .eq('fk_id_plan', planId)
+        .not('fk_id_producto', 'is', null)
+
+      if (fetchError) throw fetchError
+
+      const productosYaAsociados = new Set(
+        asociacionesExistentes?.map(a => a.fk_id_producto).filter(Boolean) || []
+      )
+
+      console.log(`Total: ${productos.length}, Ya asociados: ${productosYaAsociados.size}`)
+
+      let added = 0
+      let skipped = 0
+      let errors = 0
+
+      // Recorrer todos los productos
+      for (let i = 0; i < productos.length; i++) {
+        const producto = productos[i]
+
+        // Actualizar progreso
+        setMassProgress(Math.round(((i + 1) / productos.length) * 100))
+        setMassResults({added, skipped})
+
+        // Si ya está asociado, omitir
+        if (productosYaAsociados.has(producto.id)) {
+          skipped++
+          continue
+        }
+
+        // Asociar producto al plan
+        try {
+          await onCreateProductoPlanDefault({
+            fk_id_producto: producto.id,
+            fk_id_plan: planId,
+            fk_id_combo: undefined,
+            activo: true
+          } as any)
+          added++
+          productosYaAsociados.add(producto.id) // Marcar como asociado
+        } catch (error: any) {
+          errors++
+          console.error(`Error ${errors} - Producto ${producto.id}:`, error?.message || JSON.stringify(error))
+          skipped++
+
+          // Si hay demasiados errores consecutivos, detener
+          if (errors > 5 && added === 0) {
+            throw new Error(`Proceso detenido: ${errors} errores consecutivos`)
+          }
+        }
+
+        // Pausa cada 10 productos
+        if ((i + 1) % 10 === 0) {
+          await new Promise(resolve => setTimeout(resolve, 100))
+        }
+      }
+
+      setMassResults({added, skipped})
+      console.log(`Completado: Added=${added}, Skipped=${skipped}, Errors=${errors}`)
+      alert(`Completado!\n\nAsociados: ${added}\nOmitidos: ${skipped}${errors > 0 ? `\nErrores: ${errors}` : ''}`)
+
+    } catch (error: any) {
+      console.error('Error en asociación masiva:', error)
+      alert(`Error: ${error?.message || 'Error desconocido'}`)
+    } finally {
+      setIsProcessingMass(false)
+      setSelectedPlanForMass("")
+    }
   }
 
   const handleEdit = (productoPlanDefault: ProductoPlanDefault) => {
@@ -246,7 +342,16 @@ export const ProductosPlanesSection = React.memo(({
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Productos por Planes</CardTitle>
-                     <Dialog open={isDialogOpen} onOpenChange={(open) => {
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsMassAssociateOpen(true)}
+              className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-300"
+            >
+              <Users className="h-4 w-4 mr-2" />
+              Asociar Masivamente
+            </Button>
+            <Dialog open={isDialogOpen} onOpenChange={(open) => {
              if (!open) {
                setIsDialogOpen(false)
                resetForm()
@@ -413,6 +518,76 @@ export const ProductosPlanesSection = React.memo(({
                   {isCreating ? "Guardando..." : editingProductoPlanDefault ? "Actualizar" : "Crear"}
                 </Button>
               </form>
+            </DialogContent>
+          </Dialog>
+          </div>
+
+          {/* Modal de Asociación Masiva */}
+          <Dialog open={isMassAssociateOpen} onOpenChange={setIsMassAssociateOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Asociar Productos Masivamente a un Plan</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="plan-mass">Selecciona un Plan</Label>
+                  <Select
+                    value={selectedPlanForMass}
+                    onValueChange={setSelectedPlanForMass}
+                    disabled={isProcessingMass}
+                  >
+                    <SelectTrigger id="plan-mass">
+                      <SelectValue placeholder="Selecciona un plan" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {planes.map((plan) => (
+                        <SelectItem key={plan.id} value={plan.id.toString()}>
+                          {plan.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-gray-500">
+                    Se asociarán todos los productos que NO estén ya asociados a este plan
+                  </p>
+                </div>
+
+                {isProcessingMass && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm text-gray-600">
+                      <span>Progreso:</span>
+                      <span>{massProgress}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${massProgress}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Asociados: {massResults.added} | Omitidos: {massResults.skipped}
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsMassAssociateOpen(false)}
+                    disabled={isProcessingMass}
+                    className="flex-1"
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    onClick={handleMassAssociate}
+                    disabled={isProcessingMass || !selectedPlanForMass}
+                    className="flex-1"
+                  >
+                    {isProcessingMass ? "Procesando..." : "Asociar"}
+                  </Button>
+                </div>
+              </div>
             </DialogContent>
           </Dialog>
         </CardHeader>
