@@ -168,7 +168,19 @@ export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProduct
     try {
       const buffer = await file.arrayBuffer()
       const workbook = XLSX.read(buffer)
-      const sheetName = workbook.SheetNames[0]
+
+      // Buscar la hoja "Nuevo" si existe, sino usar la primera hoja
+      let sheetName = workbook.SheetNames[0]
+      if (workbook.SheetNames.length > 1) {
+        const nuevoSheet = workbook.SheetNames.find(name => name.toLowerCase() === 'nuevo')
+        if (nuevoSheet) {
+          sheetName = nuevoSheet
+          console.log(`📋 Usando hoja: "${sheetName}"`)
+        } else {
+          console.log(`⚠️ No se encontró hoja "Nuevo", usando: "${sheetName}"`)
+        }
+      }
+
       const sheet = workbook.Sheets[sheetName]
       const data = XLSX.utils.sheet_to_json(sheet) as any[]
 
@@ -333,7 +345,18 @@ export const ExcelMigrator = ({ productos, categorias, marcas, lineas, onProduct
     try {
       const buffer = await file.arrayBuffer()
       const workbook = XLSX.read(buffer)
-      const sheetName = workbook.SheetNames[0]
+      // Buscar la hoja "Nuevo" si existe, sino usar la primera hoja
+      let sheetName = workbook.SheetNames[0]
+      if (workbook.SheetNames.length > 1) {
+        const nuevoSheet = workbook.SheetNames.find(name => name.toLowerCase() === 'nuevo')
+        if (nuevoSheet) {
+          sheetName = nuevoSheet
+          console.log(`📋 Migrando desde hoja: "${sheetName}"`)
+        } else {
+          console.log(`⚠️ No se encontró hoja "Nuevo", usando: "${sheetName}"`)
+        }
+      }
+
       const sheet = workbook.Sheets[sheetName]
       const data = XLSX.utils.sheet_to_json(sheet) as any[]
 
