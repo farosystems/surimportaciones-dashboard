@@ -9,13 +9,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { ProductoPlanDefault, Producto, PlanFinanciacion, Combo, Categoria } from "@/lib/supabase"
+import { ProductoPlanDefault, Producto, PlanFinanciacion, Combo, Categoria, Marca } from "@/lib/supabase"
 
 interface ProductosPlanesSectionProps {
   productosPlanesDefault: ProductoPlanDefault[]
   productos: Producto[]
   planes: PlanFinanciacion[]
   categorias: Categoria[]
+  marcas: Marca[]
   onCreateProductoPlanDefault: (productoPlanDefault: Omit<ProductoPlanDefault, 'id' | 'created_at'>) => Promise<void>
   onUpdateProductoPlanDefault: (id: number, productoPlanDefault: Partial<ProductoPlanDefault>) => Promise<void>
   onDeleteProductoPlanDefault: (id: number) => Promise<void>
@@ -26,6 +27,7 @@ export const ProductosPlanesSection = React.memo(({
   productos,
   planes,
   categorias,
+  marcas,
   onCreateProductoPlanDefault,
   onUpdateProductoPlanDefault,
   onDeleteProductoPlanDefault
@@ -47,6 +49,9 @@ export const ProductosPlanesSection = React.memo(({
   // Estados para asociación masiva
   const [isMassAssociateOpen, setIsMassAssociateOpen] = useState(false)
   const [selectedPlanForMass, setSelectedPlanForMass] = useState<string>("")
+  const [massFilterType, setMassFilterType] = useState<"todos" | "categoria" | "marca">("todos")
+  const [massFilterCategoria, setMassFilterCategoria] = useState<string>("")
+  const [massFilterMarca, setMassFilterMarca] = useState<string>("")
   const [isProcessingMass, setIsProcessingMass] = useState(false)
   const [massProgress, setMassProgress] = useState(0)
   const [massResults, setMassResults] = useState<{added: number, skipped: number}>({added: 0, skipped: 0})
@@ -103,8 +108,29 @@ export const ProductosPlanesSection = React.memo(({
       alert('Por favor selecciona un plan')
       return
     }
+    if (massFilterType === "categoria" && !massFilterCategoria) {
+      alert('Por favor selecciona una categoría')
+      return
+    }
+    if (massFilterType === "marca" && !massFilterMarca) {
+      alert('Por favor selecciona una marca')
+      return
+    }
 
-    const confirmacion = confirm(`¿Estás seguro de asociar TODOS los productos al plan seleccionado?\n\nEsto puede tomar varios minutos.`)
+    // Filtrar productos según el tipo de filtro elegido
+    let productosFiltrados = productos
+    if (massFilterType === "categoria") {
+      productosFiltrados = productos.filter(p => p.fk_id_categoria?.toString() === massFilterCategoria)
+    } else if (massFilterType === "marca") {
+      productosFiltrados = productos.filter(p => p.fk_id_marca?.toString() === massFilterMarca)
+    }
+
+    const filtroLabel =
+      massFilterType === "todos" ? "TODOS los productos" :
+      massFilterType === "categoria" ? `los productos de la categoría seleccionada (${productosFiltrados.length})` :
+      `los productos de la marca seleccionada (${productosFiltrados.length})`
+
+    const confirmacion = confirm(`¿Estás seguro de asociar ${filtroLabel} al plan seleccionado?\n\nEsto puede tomar varios minutos.`)
     if (!confirmacion) return
 
     setIsProcessingMass(true)
@@ -127,27 +153,21 @@ export const ProductosPlanesSection = React.memo(({
         asociacionesExistentes?.map(a => a.fk_id_producto).filter(Boolean) || []
       )
 
-      console.log(`Total: ${productos.length}, Ya asociados: ${productosYaAsociados.size}`)
-
       let added = 0
       let skipped = 0
       let errors = 0
 
-      // Recorrer todos los productos
-      for (let i = 0; i < productos.length; i++) {
-        const producto = productos[i]
+      for (let i = 0; i < productosFiltrados.length; i++) {
+        const producto = productosFiltrados[i]
 
-        // Actualizar progreso
-        setMassProgress(Math.round(((i + 1) / productos.length) * 100))
+        setMassProgress(Math.round(((i + 1) / productosFiltrados.length) * 100))
         setMassResults({added, skipped})
 
-        // Si ya está asociado, omitir
         if (productosYaAsociados.has(producto.id)) {
           skipped++
           continue
         }
 
-        // Asociar producto al plan
         try {
           await onCreateProductoPlanDefault({
             fk_id_producto: producto.id,
@@ -156,26 +176,23 @@ export const ProductosPlanesSection = React.memo(({
             activo: true
           } as any)
           added++
-          productosYaAsociados.add(producto.id) // Marcar como asociado
+          productosYaAsociados.add(producto.id)
         } catch (error: any) {
           errors++
           console.error(`Error ${errors} - Producto ${producto.id}:`, error?.message || JSON.stringify(error))
           skipped++
 
-          // Si hay demasiados errores consecutivos, detener
           if (errors > 5 && added === 0) {
             throw new Error(`Proceso detenido: ${errors} errores consecutivos`)
           }
         }
 
-        // Pausa cada 10 productos
         if ((i + 1) % 10 === 0) {
           await new Promise(resolve => setTimeout(resolve, 100))
         }
       }
 
       setMassResults({added, skipped})
-      console.log(`Completado: Added=${added}, Skipped=${skipped}, Errors=${errors}`)
       alert(`Completado!\n\nAsociados: ${added}\nOmitidos: ${skipped}${errors > 0 ? `\nErrores: ${errors}` : ''}`)
 
     } catch (error: any) {
@@ -184,6 +201,9 @@ export const ProductosPlanesSection = React.memo(({
     } finally {
       setIsProcessingMass(false)
       setSelectedPlanForMass("")
+      setMassFilterType("todos")
+      setMassFilterCategoria("")
+      setMassFilterMarca("")
     }
   }
 
@@ -523,14 +543,23 @@ export const ProductosPlanesSection = React.memo(({
           </div>
 
           {/* Modal de Asociación Masiva */}
-          <Dialog open={isMassAssociateOpen} onOpenChange={setIsMassAssociateOpen}>
+          <Dialog open={isMassAssociateOpen} onOpenChange={(open) => {
+            if (!open && !isProcessingMass) {
+              setIsMassAssociateOpen(false)
+              setMassFilterType("todos")
+              setMassFilterCategoria("")
+              setMassFilterMarca("")
+            } else if (open) {
+              setIsMassAssociateOpen(true)
+            }
+          }}>
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>Asociar Productos Masivamente a un Plan</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label htmlFor="plan-mass">Selecciona un Plan</Label>
+                  <Label htmlFor="plan-mass">Plan</Label>
                   <Select
                     value={selectedPlanForMass}
                     onValueChange={setSelectedPlanForMass}
@@ -547,10 +576,89 @@ export const ProductosPlanesSection = React.memo(({
                       ))}
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-gray-500">
-                    Se asociarán todos los productos que NO estén ya asociados a este plan
-                  </p>
                 </div>
+
+                <div className="space-y-2">
+                  <Label>Filtrar productos por</Label>
+                  <Select
+                    value={massFilterType}
+                    onValueChange={(value: "todos" | "categoria" | "marca") => {
+                      setMassFilterType(value)
+                      setMassFilterCategoria("")
+                      setMassFilterMarca("")
+                    }}
+                    disabled={isProcessingMass}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos los productos</SelectItem>
+                      <SelectItem value="categoria">Categoría</SelectItem>
+                      <SelectItem value="marca">Marca</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {massFilterType === "categoria" && (
+                  <div className="space-y-2">
+                    <Label>Categoría</Label>
+                    <Select
+                      value={massFilterCategoria}
+                      onValueChange={setMassFilterCategoria}
+                      disabled={isProcessingMass}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona una categoría" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categorias.map((cat) => (
+                          <SelectItem key={cat.id} value={cat.id.toString()}>
+                            {cat.descripcion}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {massFilterCategoria && (
+                      <p className="text-xs text-gray-500">
+                        {productos.filter(p => p.fk_id_categoria?.toString() === massFilterCategoria).length} productos en esta categoría
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {massFilterType === "marca" && (
+                  <div className="space-y-2">
+                    <Label>Marca</Label>
+                    <Select
+                      value={massFilterMarca}
+                      onValueChange={setMassFilterMarca}
+                      disabled={isProcessingMass}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona una marca" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {marcas.map((marca) => (
+                          <SelectItem key={marca.id} value={marca.id.toString()}>
+                            {marca.descripcion}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {massFilterMarca && (
+                      <p className="text-xs text-gray-500">
+                        {productos.filter(p => p.fk_id_marca?.toString() === massFilterMarca).length} productos de esta marca
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {massFilterType === "todos" && (
+                  <p className="text-xs text-gray-500">
+                    Se asociarán todos los productos ({productos.length}) que no estén ya en este plan
+                  </p>
+                )}
 
                 {isProcessingMass && (
                   <div className="space-y-2">
@@ -573,7 +681,12 @@ export const ProductosPlanesSection = React.memo(({
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
-                    onClick={() => setIsMassAssociateOpen(false)}
+                    onClick={() => {
+                      setIsMassAssociateOpen(false)
+                      setMassFilterType("todos")
+                      setMassFilterCategoria("")
+                      setMassFilterMarca("")
+                    }}
                     disabled={isProcessingMass}
                     className="flex-1"
                   >
@@ -581,7 +694,12 @@ export const ProductosPlanesSection = React.memo(({
                   </Button>
                   <Button
                     onClick={handleMassAssociate}
-                    disabled={isProcessingMass || !selectedPlanForMass}
+                    disabled={
+                      isProcessingMass ||
+                      !selectedPlanForMass ||
+                      (massFilterType === "categoria" && !massFilterCategoria) ||
+                      (massFilterType === "marca" && !massFilterMarca)
+                    }
                     className="flex-1"
                   >
                     {isProcessingMass ? "Procesando..." : "Asociar"}

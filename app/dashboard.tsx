@@ -264,6 +264,7 @@ function Dashboard() {
             productos={productos}
             planes={planes}
             categorias={categorias}
+            marcas={marcas}
             onCreateProductoPlanDefault={createProductoPlanDefault}
             onUpdateProductoPlanDefault={updateProductoPlanDefault}
             onDeleteProductoPlanDefault={deleteProductoPlanDefault}
